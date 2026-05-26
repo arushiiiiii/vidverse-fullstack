@@ -7,8 +7,21 @@ import dotenv from "dotenv";      // direct import aise available nhi h dotenv m
 import connectDB from "./db/index.js";  // kabhi kabhi index file khud se nhi load hoti toh hume use likhna padta h
 
 dotenv.config({path: './.env'})
-connectDB()
 
+
+connectDB()   //since yeh ek promise return krega, therefore
+.then(() => {
+    app.on("error", (error) => {
+        console.log("ERROR OCCURED: ", error)
+        throw error
+    })
+    app.listen(process.env.PORT || 8000, () => {
+        console.log(`Server is running at port : ${process.env.PORT}`);
+    })
+})
+.catch((err) => {
+    console.log("MongoDB connection failed!!", err);
+})
 
 
 
