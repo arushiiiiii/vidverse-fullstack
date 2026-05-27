@@ -5,6 +5,7 @@ import dotenv from "dotenv";      // direct import aise available nhi h dotenv m
 // import mongoose from "mongoose";
 // import { DB_NAME } from "./constants";
 import connectDB from "./db/index.js";  // kabhi kabhi index file khud se nhi load hoti toh hume use likhna padta h
+import {app} from './app.js'
 
 dotenv.config({path: './.env'})
 
