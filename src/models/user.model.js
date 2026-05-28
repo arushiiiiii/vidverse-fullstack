@@ -49,10 +49,10 @@ const userSchema = new Schema(
     {timestamps: true}
 )
 
-userSchema.pre("save", async function (next) {   //pre hook bhi ek middleware h mongoose ka, isme jb data save hone jaa rha hoga just usse pehle koi function run kra skte ho
-    if (!this.isModified("password")) return next();
+userSchema.pre("save", async function () {   //pre hook bhi ek middleware h mongoose ka, isme jb data save hone jaa rha hoga just usse pehle koi function run kra skte ho
+    if (!this.isModified("password")) return ;
     this.password = await bcrypt.hash(this.password, 10)
-    next()
+    return;
 })
 
 // hum jitne chahe utne methods bna skte h apne need ke according 
@@ -60,7 +60,7 @@ userSchema.methods.isPasswordCorrect = async function(password) {
     return await bcrypt.compare(password, this.password)
 }
 
-userSchema.method.generateAccessToken = function(){
+userSchema.methods.generateAccessToken = function(){
     return jwt.sign(
         {
             _id: this._id,
@@ -74,7 +74,7 @@ userSchema.method.generateAccessToken = function(){
         }
     )
 }
-userSchema.method.generateRefreshToken = function(){
+userSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
         {
             _id: this._id,

@@ -22,7 +22,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const {fullname, email, username, password} = req.body
     // console.log(req.body)
-    console.log("email: ", email);
+    // console.log("email: ", email);
 
     // if (fullname === "") {
     //     throw new ApiError(400, "fullname is required")
@@ -41,11 +41,22 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(409, "User with email or username already exists")
     }
 
+
     // we know that req.body ke andar humara saara data aata h lekin kyunki humne routes ke andar ek middleware add kr diya h toh ab hume yeh middleware bhi kuch files ka access deta h, yeh basically request ke andar aur fields add krta h.
     // ab jaise by default express hume req.body deta h, waise he multer hume req.files ka access deta h
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    console.log(avatarLocalPath)
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    // console.log(req.files)
+    // console.log(avatarLocalPath)
+
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path; yeh directly error de skta h, javascript ka bug h yeh kyunki coverImage exist krta h ya nahi yeh cheez yeh check nhi krta
+    let coverImageLocalPath;
+    if (req.file && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path
+
+    }
+
+
+
 
     if (!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required")
