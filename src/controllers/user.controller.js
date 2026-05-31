@@ -261,7 +261,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res
     .status(200)
-    .json(200, req.user, "current user fetched successfully")
+    .json(new ApiResponse(200, req.user, "current user fetched successfully"))
 })
 
 
@@ -345,6 +345,133 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "cover image updated successfully"))
 })
 
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const{username} = req.params    // jb bhi hume kisi channel ki profile chahiye hoti h toh hum uske url pr jaate h. Ab hume uske url milega req.params se na ki req.body se kyunki url ke andar hi username hoga. req.body se toh data tab milega jab frontend hume data bheje, lekin yaha toh frontend se data nahi aa raha h, hum url ke through hi username le rhe h
+    if (!username?.trim()) {
+        throw new ApiError(400, "username is required")
+    }
+
+    // User.findOne({username}); // yeh bhi use kr skte h
+    // aggregate pipelines use krne se return value hume arrays milti h 
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",   // yeh wohi collection h jiska model humne subscription.model.js ke andar banaya h. mongodb collection ka naam plural form mein hota h, toh subscription ka plural form subscriptions ho jaayega
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"   // hum $ sign isliye use kr rhe h kyunki subscribers ek field hai, aur har field ke aage hume $ sign lagana hota h mongodb queries mein
+                },
+                channelsSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: {$in : [req.user?._id, "$subscribers.subscriber"]},  // $in operator array aur objects ke andar check krta h ki kya given value exist krti h ya nahi. yaha hum check kr rhe h ki kya current logged in user ka id, subscribers array ke andar subscriber field ke andar exist krta h ya nahi. kyunki subscribers array ke andar saare subscribers ki details hoti h, aur har subscriber ke andar subscriber field hota h jisme subscriber ka id hota h.
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullname: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1
+            }
+        }
+    ])
+
+    if (!channel?.length) {
+        throw new ApiError(404, "Channel does not exists")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, channel[0], "User channel fetched successfully")
+    )
+})
+
+
+const getWatchHistory = asyncHandler(async(req, res) => {
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id), // here _id is the id of the user whose watch history we want to fetch, and req.user._id is the id of the currently logged in user. toh dono id ko compare krne ke liye hume unhe same format mein convert krna hoga, aur mongoose.Types.ObjectId() use krne se hum dono id ko object id format mein convert kr skte h
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {  // nested lookup, yeh basically videos ke andar owner ki details bhi fetch krne ke liye hoga
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1,
+                                    }
+                                }
+                            ]
+                        }
+                    }, 
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$owner"  // kyunki owner ke andar hume sirf ek hi user ki details milegi, toh $first operator use krke hum usi user ki details ko owner field ke andar daal denge, warna toh owner field ke andar ek array aa jaayega jisme us user ki details hongi
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user[0].watchHistory, "User watch history fetched successfully")
+    )
+})
+
+
+
+
 export {
     registerUser, 
     loginUser, 
@@ -354,5 +481,7 @@ export {
     getCurrentUser, 
     updateAccountDetails,
     updateUserAvatar, 
-    updateUserCoverImage
+    updateUserCoverImage,
+    getUserChannelProfile,
+    getWatchHistory,
 }
